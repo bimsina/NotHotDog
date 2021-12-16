@@ -1,20 +1,20 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:mlkit/mlkit.dart';
+import 'package:google_ml_vision/google_ml_vision.dart';
 
 class DetectorScreen extends StatefulWidget {
   final File image;
 
-  DetectorScreen({Key key, this.image}) : super(key: key);
+  DetectorScreen({Key? key, required this.image}) : super(key: key);
   @override
   _DetectorScreenState createState() => _DetectorScreenState();
 }
 
 class _DetectorScreenState extends State<DetectorScreen> {
-  FirebaseVisionLabelDetector _labelDetector =
-      FirebaseVisionLabelDetector.instance;
-  List<VisionLabel> _list = <VisionLabel>[];
+  final ImageLabeler _labelDetector = GoogleVision.instance.imageLabeler();
+
+  List<ImageLabel> _labelList = [];
   bool isHotDog = false, isLoading = true;
 
   @override
@@ -25,19 +25,23 @@ class _DetectorScreenState extends State<DetectorScreen> {
 
   void detectImage() async {
     try {
-      _list = await _labelDetector.detectFromPath(widget.image.path);
+      final GoogleVisionImage visionImage =
+          GoogleVisionImage.fromFilePath(widget.image.path);
+      _labelList = await _labelDetector.processImage(visionImage);
 
-      for (var i in _list) {
-        if (i.label == 'Hot dog') {
-          isHotDog = true;
-          break;
+      for (var i in _labelList) {
+        if (i.text != null) {
+          if (i.text!.toLowerCase().replaceAll(' ', '') == 'hotdog') {
+            isHotDog = true;
+            break;
+          }
         }
       }
       setState(() {
         isLoading = false;
       });
     } catch (e) {
-      print('Something horrible happened');
+      print('Something horrible happened $e');
     }
   }
 
@@ -51,13 +55,13 @@ class _DetectorScreenState extends State<DetectorScreen> {
             height: double.infinity,
             decoration: BoxDecoration(
                 image: DecorationImage(
-                    image: FileImage(widget.image), fit: BoxFit.cover)),
+                    image: FileImage(widget.image), fit: BoxFit.fitWidth)),
           ),
           isLoading
               ? loadingWidget()
               : ResultWidget(
                   isHotDog: isHotDog,
-                  list: _list,
+                  list: _labelList,
                 )
         ],
       ),
@@ -88,9 +92,10 @@ class _DetectorScreenState extends State<DetectorScreen> {
 
 class ResultWidget extends StatelessWidget {
   final bool isHotDog;
-  final List<VisionLabel> list;
+  final List<ImageLabel> list;
 
-  ResultWidget({Key key, this.isHotDog, this.list}) : super(key: key);
+  ResultWidget({Key? key, required this.isHotDog, required this.list})
+      : super(key: key);
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -178,7 +183,7 @@ class ResultWidget extends StatelessWidget {
                 padding: const EdgeInsets.all(8.0),
                 child: Chip(
                   label: Text(
-                    list[index].label,
+                    "${list[index].text}",
                     style: TextStyle(color: Colors.white),
                   ),
                   backgroundColor: Colors.red,

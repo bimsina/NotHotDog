@@ -4,9 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nothotdog/detectorScreen.dart';
-import 'package:path_provider/path_provider.dart';
 import 'main.dart';
-import 'package:path/path.dart' show join;
 
 class HomePage extends StatefulWidget {
   @override
@@ -14,7 +12,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  CameraController controller;
+  late CameraController controller;
 
   @override
   void initState() {
@@ -31,29 +29,24 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    controller?.dispose();
+    controller.dispose();
 
     super.dispose();
   }
 
 //Get Image From Gallery
   Future getImage() async {
-    var image = await ImagePicker.pickImage(source: ImageSource.gallery);
+    var image = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (image != null) {
-      _gotoDetectorPage(image);
+      _gotoDetectorPage(File.fromUri(Uri.parse(image.path)));
     }
   }
 
   // take picture from viewfinder
   Future _onTakePicture() async {
     try {
-      final path = join(
-        (await getTemporaryDirectory()).path,
-        '${DateTime.now()}.png',
-      );
-
-      controller.takePicture(path).then((file) {
-        _gotoDetectorPage(File.fromUri(Uri.parse(path)));
+      controller.takePicture().then((file) {
+        _gotoDetectorPage(File.fromUri(Uri.parse(file.path)));
       });
     } catch (e) {
       print(e);
@@ -72,56 +65,55 @@ class _HomePageState extends State<HomePage> {
 
 //Widget Declarations
   Widget buildGalleryButton() {
-    return Positioned(
-      top: 30,
-      right: 8,
-      child: IconButton(
-        iconSize: 35,
-        icon: Icon(
-          Icons.perm_media,
-          color: Colors.white,
-        ),
+    return FloatingActionButton.extended(
         onPressed: getImage,
-      ),
-    );
+        heroTag: 'pick',
+        label: Text('Pick Image'),
+        icon: Icon(Icons.image));
   }
 
   Widget buildCaptureButton() {
-    return Positioned(
-      bottom: 16,
-      right: 0,
-      left: 0,
-      child: InkWell(
-        onTap: () async {
-          await _onTakePicture();
-        },
-        child: Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.yellow,
-              border: Border.all(
-                width: 3,
-                color: Colors.black,
-              )),
-        ),
-      ),
-    );
+    return FloatingActionButton.extended(
+        heroTag: 'capture',
+        label: Text('Capture image'),
+        onPressed: _onTakePicture,
+        icon: Icon(Icons.camera));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: Text('Nothotdog')),
       body: Stack(
         children: <Widget>[
           !controller.value.isInitialized
-              ? Container(
-                  color: Colors.blue,
-                )
-              : CameraPreview(controller),
-          buildGalleryButton(),
-          buildCaptureButton()
+              ? Container()
+              : Center(child: CameraPreview(controller)),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  buildCaptureButton(),
+                  Container(
+                    width: 50,
+                    height: 35,
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(100),
+                        color: Colors.blue),
+                    alignment: Alignment.center,
+                    margin: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(8.0),
+                    child:
+                        Text("- or -", style: TextStyle(color: Colors.white)),
+                  ),
+                  buildGalleryButton(),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
